@@ -15,6 +15,7 @@ aiosqlite
 # Authentication
 pyjwt
 passlib[bcrypt]
+python-jose
 
 # BaaS
 supabase
@@ -25,9 +26,13 @@ redis
 # AI & Image
 pillow
 openai
+google-generativeai
 
 # HTTP Client
 httpx
+
+# File Operations
+aiofiles
 
 # Utilities
 python-dotenv
@@ -35,3 +40,7 @@ python-dotenv
 # Testing
 pytest
 pytest-asyncio
+
+# Additional (for FastAPI)
+fastapi-users[sqlalchemy]
+alembic

@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7일
 
     # ===== AI Services =====
+    # Google Gemini
+    GEMINI_API_KEY: Optional[str] = None
+
     # OpenAI
     OPENAI_API_KEY: Optional[str] = None
     OPENAI_ORG_ID: Optional[str] = None

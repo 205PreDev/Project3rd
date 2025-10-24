@@ -1,6 +1,8 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 from app.core.config import settings
 from app.core.database import create_db_and_tables
 from app.api import api_router
@@ -47,3 +49,8 @@ async def health_check():
 
 # Include API routers
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+# Mount static files for uploaded images
+uploads_dir = Path("./uploads")
+uploads_dir.mkdir(exist_ok=True)
+app.mount("/files", StaticFiles(directory=str(uploads_dir)), name="files")

@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Dict, List
 from datetime import datetime
 
 
@@ -28,5 +28,9 @@ class TrialSessionUploadResponse(BaseModel):
     """Schema for trial session upload response"""
     session_id: str
     original_image_url: str
+    processed_image_url: Optional[str] = None
+    caption: Optional[str] = None
     message: str
     expires_at: datetime
+    analysis: Optional[Dict] = Field(None, description="Image analysis result from Gemini")
+    captions: Optional[List[str]] = Field(None, description="Generated ad captions")
