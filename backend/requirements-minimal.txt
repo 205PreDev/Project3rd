@@ -1,0 +1,38 @@
+# Minimal requirements for testing backend setup
+# 빌드 문제 발생 시 이 파일로 먼저 설치 후 개별 추가
+
+# Core Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# Database (SQLite only for testing)
+sqlalchemy==2.0.25
+aiosqlite==0.19.0
+
+# Simple Auth (no cryptography)
+pyjwt==2.8.0
+passlib==1.7.4
+bcrypt==4.1.2
+
+# BaaS
+supabase==2.3.0
+
+# Redis
+redis==5.0.1
+
+# AI & Image
+pillow==10.2.0
+openai==1.10.0
+
+# HTTP Client
+httpx==0.26.0
+
+# Utilities
+python-dotenv==1.0.0
+
+# Testing
+pytest==7.4.4
+pytest-asyncio==0.23.3

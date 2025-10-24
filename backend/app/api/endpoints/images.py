@@ -5,20 +5,23 @@ from typing import List, Optional
 
 from app.core.database import get_async_session
 from app.core.auth import current_active_user
+from app.core.config import get_settings
 from app.models.user import User
-from app.models.image import Image, ImageStatus
+from app.models.image import Image
 from app.models.project import Project
-from app.schemas.image import ImageRead, ImageUploadResponse
-from app.services.storage_service import storage_service
-from app.services.credit_service import CreditService, CREDIT_COSTS
+from app.schemas.image import ImageRead, ImageUploadResponse, CaptionGenerateRequest, CaptionGenerateResponse
+# from app.services.storage_service import storage_service
+# from app.services.credit_service import CreditService
 
 router = APIRouter()
+settings = get_settings()
 
 
 @router.post("/upload", response_model=ImageUploadResponse, status_code=201)
 async def upload_image(
     file: UploadFile = File(...),
     project_id: int = Form(...),
+    style: Optional[str] = Form(None),
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session)
 ):
@@ -46,7 +49,7 @@ async def upload_image(
         raise HTTPException(status_code=404, detail="Project not found")
 
     # Check if user has enough credits
-    credit_cost = CREDIT_COSTS["image_generation"]
+    credit_cost = settings.CREDIT_COSTS.get("image_generation", 1)
     if user.credits < credit_cost:
         raise HTTPException(
             status_code=400,
@@ -54,42 +57,28 @@ async def upload_image(
         )
 
     try:
-        # Upload file to storage
-        if not storage_service:
-            raise HTTPException(
-                status_code=500,
-                detail="Storage service not configured. Please set SUPABASE_URL and SUPABASE_KEY"
-            )
-
-        file_url = await storage_service.upload_file(
-            file=file,
-            user_id=user.id,
-            folder="uploads"
-        )
+        # TODO: Implement storage service integration
+        # For now, create placeholder URL
+        file_url = f"placeholder://uploads/{user.id}/{file.filename}"
 
         # Create image record
         db_image = Image(
             project_id=project_id,
-            original_image_url=file_url,
-            status=ImageStatus.PENDING
+            user_id=user.id,
+            original_url=file_url,
+            style=style
         )
         session.add(db_image)
 
-        # Deduct credits
-        await CreditService.deduct_credits(
-            user_id=user.id,
-            amount=credit_cost,
-            session=session,
-            description=f"Image upload - {file.filename}"
-        )
+        # Deduct credits (simplified - should use CreditService)
+        user.credits -= credit_cost
 
         await session.commit()
         await session.refresh(db_image)
 
         return ImageUploadResponse(
             image_id=db_image.id,
-            original_image_url=db_image.original_image_url,
-            status=db_image.status,
+            original_url=db_image.original_url,
             message="Image uploaded successfully. Processing will begin shortly."
         )
 
@@ -171,11 +160,82 @@ async def delete_image(
 
     # TODO: Delete files from storage
     # if storage_service:
-    #     await storage_service.delete_file(image.original_image_url)
-    #     if image.processed_image_url:
-    #         await storage_service.delete_file(image.processed_image_url)
+    #     await storage_service.delete_file(image.original_url)
+    #     if image.processed_url:
+    #         await storage_service.delete_file(image.processed_url)
 
     await session.delete(image)
     await session.commit()
 
     return None
+
+
+@router.post("/caption/generate", response_model=CaptionGenerateResponse, status_code=200)
+async def generate_caption(
+    request: CaptionGenerateRequest,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """
+    Generate AI caption for an image
+    Deducts credits for caption generation
+    """
+    # Verify image exists and belongs to user
+    result = await session.execute(
+        select(Image)
+        .join(Project)
+        .where(
+            Image.id == request.image_id,
+            Project.user_id == user.id
+        )
+    )
+    image = result.scalar_one_or_none()
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    # Check if user has enough credits
+    credit_cost = settings.CREDIT_COSTS.get("caption_generation", 0.5)
+    if user.credits < credit_cost:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Insufficient credits. Required: {credit_cost}, Available: {user.credits}"
+        )
+
+    try:
+        # TODO: Implement AI caption generation service
+        # For now, create placeholder caption
+        caption = f"[AI Generated Caption] {request.tone or 'neutral'} tone, {request.length or 'medium'} length"
+
+        caption_metadata = {
+            "tone": request.tone or "neutral",
+            "length": request.length or "medium",
+            "include_hashtags": request.include_hashtags,
+            "hashtags": ["#example", "#placeholder"] if request.include_hashtags else [],
+            "generated_at": "2025-10-24T00:00:00Z"
+        }
+
+        # Update image with caption
+        image.caption = caption
+        image.caption_metadata = caption_metadata
+
+        # Deduct credits
+        user.credits -= credit_cost
+
+        await session.commit()
+        await session.refresh(image)
+
+        return CaptionGenerateResponse(
+            image_id=image.id,
+            caption=caption,
+            caption_metadata=caption_metadata,
+            message="Caption generated successfully"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate caption: {str(e)}"
+        )

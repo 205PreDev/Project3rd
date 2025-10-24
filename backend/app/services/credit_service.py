@@ -1,7 +1,9 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models.user import User
+from app.models.credit_transaction import CreditTransaction
 from fastapi import HTTPException
+from typing import Optional
 
 
 class CreditService:
@@ -23,7 +25,9 @@ class CreditService:
         user_id: int,
         amount: float,
         session: AsyncSession,
-        description: str = "Credit deduction"
+        description: str = "Credit deduction",
+        reason: str = "deduction",
+        reference_id: Optional[int] = None
     ) -> dict:
         """
         Deduct credits from user account
@@ -47,6 +51,16 @@ class CreditService:
 
         # Deduct credits
         user.credits -= amount
+
+        # Create transaction record
+        transaction = CreditTransaction(
+            user_id=user_id,
+            amount=-amount,  # Negative for deduction
+            reason=reason,
+            reference_id=reference_id
+        )
+        session.add(transaction)
+
         await session.commit()
         await session.refresh(user)
 
@@ -61,7 +75,9 @@ class CreditService:
         user_id: int,
         amount: float,
         session: AsyncSession,
-        description: str = "Credit addition"
+        description: str = "Credit addition",
+        reason: str = "addition",
+        reference_id: Optional[int] = None
     ) -> dict:
         """
         Add credits to user account
@@ -78,6 +94,16 @@ class CreditService:
 
         # Add credits
         user.credits += amount
+
+        # Create transaction record
+        transaction = CreditTransaction(
+            user_id=user_id,
+            amount=amount,  # Positive for addition
+            reason=reason,
+            reference_id=reference_id
+        )
+        session.add(transaction)
+
         await session.commit()
         await session.refresh(user)
 
@@ -101,13 +127,54 @@ class CreditService:
             user_id=user_id,
             amount=amount,
             session=session,
-            description=f"Refund: {reason}"
+            description=f"Refund: {reason}",
+            reason="refund"
         )
+
+    @staticmethod
+    async def get_transaction_history(
+        user_id: int,
+        session: AsyncSession,
+        limit: int = 50
+    ) -> list[CreditTransaction]:
+        """
+        Get credit transaction history for a user
+        Returns list of transactions (most recent first)
+        """
+        result = await session.execute(
+            select(CreditTransaction)
+            .where(CreditTransaction.user_id == user_id)
+            .order_by(CreditTransaction.created_at.desc())
+            .limit(limit)
+        )
+        return result.scalars().all()
+
+    @staticmethod
+    async def has_sufficient_credits(
+        user_id: int,
+        required_amount: float,
+        session: AsyncSession
+    ) -> bool:
+        """
+        Check if user has sufficient credits
+        """
+        try:
+            balance = await CreditService.get_balance(user_id, session)
+            return balance >= required_amount
+        except HTTPException:
+            return False
 
 
 # Credit costs constants
 CREDIT_COSTS = {
     "image_generation": 1.0,
-    "text_generation": 0.5,
+    "caption_generation": 0.3,
     "background_removal": 0.5,
+}
+
+# Bonus credits
+CREDIT_BONUSES = {
+    "welcome_bonus": 10.0,
+    "referral_bonus": 5.0,
+    "first_share": 2.0,
 }

@@ -1,0 +1,37 @@
+# Simplified requirements without strict version pinning
+# Windows 환경에서 빌드 문제 발생 시 사용
+
+# Core Framework
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic>=2.0
+pydantic-settings
+
+# Database
+sqlalchemy>=2.0
+aiosqlite
+
+# Authentication
+pyjwt
+passlib[bcrypt]
+
+# BaaS
+supabase
+
+# Redis
+redis
+
+# AI & Image
+pillow
+openai
+
+# HTTP Client
+httpx
+
+# Utilities
+python-dotenv
+
+# Testing
+pytest
+pytest-asyncio

@@ -121,6 +121,59 @@ class StorageService:
         """Get public URL for a file path"""
         return self.client.storage.from_(self.bucket).get_public_url(file_path)
 
+    async def download_file(self, file_url: str) -> bytes:
+        """
+        Download file from Supabase Storage
+        Returns file content as bytes
+        """
+        try:
+            # Extract file path from URL
+            path_parts = file_url.split(f"{self.bucket}/")
+            if len(path_parts) < 2:
+                raise ValueError("Invalid file URL")
+
+            file_path = path_parts[1]
+
+            # Download from Supabase
+            response = self.client.storage.from_(self.bucket).download(file_path)
+
+            return response
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to download file: {str(e)}"
+            )
+
+    async def list_files(self, user_id: int, folder: str = "uploads") -> list[dict]:
+        """
+        List all files for a user in a specific folder
+        Returns list of file metadata
+        """
+        try:
+            folder_path = f"{folder}/{user_id}"
+
+            # List files from Supabase
+            response = self.client.storage.from_(self.bucket).list(folder_path)
+
+            return response
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to list files: {str(e)}"
+            )
+
 
 # Singleton instance
-storage_service = StorageService() if settings.SUPABASE_URL and settings.SUPABASE_KEY else None
+_storage_service = None
+
+
+def get_storage_service() -> StorageService:
+    """Get or create StorageService singleton"""
+    global _storage_service
+    if _storage_service is None:
+        if not settings.SUPABASE_URL or not settings.SUPABASE_KEY:
+            raise ValueError("Supabase configuration not set")
+        _storage_service = StorageService()
+    return _storage_service

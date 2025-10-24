@@ -1,26 +1,79 @@
-import { useState } from 'react'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 
-function App() {
-  const [count, setCount] = useState(0)
+// Pages
+import Landing from './pages/Landing';
+import Trial from './pages/Trial';
+import Signup from './pages/Signup';
+import Tutorial from './pages/Tutorial';
+import Dashboard from './pages/Dashboard';
 
-  return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">
-          AI 이커머스 이미지 생성기
-        </h1>
-        <p className="text-lg text-gray-600 mb-8">
-          상품 이미지와 광고 문구를 자동으로 생성하세요
-        </p>
-        <button
-          onClick={() => setCount((count) => count + 1)}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          클릭 횟수: {count}
-        </button>
-      </div>
-    </div>
-  )
+// Protected Route Component
+interface ProtectedRouteProps {
+  children: React.ReactNode;
 }
 
-export default App
+function ProtectedRoute({ children }: ProtectedRouteProps) {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const response = await fetch('/api/v1/auth/me', {
+        credentials: 'include',
+      });
+      setIsAuthenticated(response.ok);
+    } catch (error) {
+      setIsAuthenticated(false);
+    }
+  };
+
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-200 border-t-purple-600"></div>
+      </div>
+    );
+  }
+
+  return isAuthenticated ? <>{children}</> : <Navigate to="/signup" />;
+}
+
+function App() {
+  return (
+    <Router>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={<Landing />} />
+        <Route path="/trial" element={<Trial />} />
+        <Route path="/signup" element={<Signup />} />
+
+        {/* Protected Routes */}
+        <Route
+          path="/tutorial"
+          element={
+            <ProtectedRoute>
+              <Tutorial />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* 404 - Redirect to Landing */}
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </Router>
+  );
+}
+
+export default App;
